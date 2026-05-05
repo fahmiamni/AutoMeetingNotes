@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import subprocess
 import sys
 import time
@@ -15,9 +16,20 @@ def get_file_name():
     return filename
 def run_script(script_path):
     """Run another Python script as a subprocess."""
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUTF8"] = "1"
+
     try:
-        result = subprocess.run([sys.executable, script_path], 
-                              capture_output=True, text=True, check=True)
+        result = subprocess.run(
+            [sys.executable, script_path],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=True,
+            env=env,
+        )
         print("Script output:")
         print(result.stdout)
         return True
@@ -30,7 +42,9 @@ def run_script(script_path):
 if __name__ == "__main__":
     # Run the transcription script
     run_script("main_02_transcribe.py")
-    run_script("main_05_summarize.py")
+    #run_script("main_05_summarize_v1_API_Gpt4o_mini.py")
+    run_script("main_05_summarize_v2_local_Gemma4_E2b.py")
+
 
     print("-" * 50)
 
