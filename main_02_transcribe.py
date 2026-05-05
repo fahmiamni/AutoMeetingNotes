@@ -73,4 +73,5 @@ else:
 
 end_time = time.time()
 elapsed_time = end_time - start_time
-print(f'Time taken to run the code: {elapsed_time / 60:.2f} minutes')
+print(f'Time taken to run the code (transcription): {elapsed_time / 60:.2f} minutes')
+print("-" * 50)

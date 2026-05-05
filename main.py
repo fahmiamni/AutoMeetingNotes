@@ -1,6 +1,7 @@
 from pathlib import Path
 import subprocess
 import sys
+import time
 
 
 def get_file_name():
@@ -31,5 +32,8 @@ if __name__ == "__main__":
     run_script("main_02_transcribe.py")
     run_script("main_05_summarize.py")
 
+    print("-" * 50)
+
     # Get the file name
     print(get_file_name())
+    print("-" * 50)

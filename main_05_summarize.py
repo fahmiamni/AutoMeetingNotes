@@ -1,6 +1,8 @@
 import os
 import requests
 from dotenv import load_dotenv
+import time
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -40,6 +42,9 @@ data = {
 # Make the API call
 response = requests.post(url, headers=headers, json=data)
 
+# Main execution
+start_time = time.time()
+
 if response.status_code == 200:
     result = response.json()
     summary = result['choices'][0]['message']['content']
@@ -53,3 +58,8 @@ if response.status_code == 200:
     print(f"Summary generated and saved to {output_file}")
 else:
     print(f"Error: {response.status_code} - {response.text}")
+
+
+end_time = time.time()
+elapsed_time = end_time - start_time
+print(f'Time taken to run the code (summarization): {elapsed_time / 60:.2f} minutes')
