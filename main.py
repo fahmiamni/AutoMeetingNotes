@@ -41,7 +41,7 @@ def run_script(script_path):
 # Example usage
 if __name__ == "__main__":
     # Run the transcription script
-    run_script("main_02_transcribe.py")
+    run_script("main_02_transcribe_v1.py")
     #run_script("main_05_summarize_v1_API_Gpt4o_mini.py")
     run_script("main_05_summarize_v2_local_Gemma4_E2b.py")
 
