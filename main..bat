@@ -4,8 +4,7 @@
 call .venv312\Scripts\activate
 
 :: Run the  code by sequence
-python main_02_transcribe.py
-python main_05_summarize.py
+python main.py
  
 
 pause
