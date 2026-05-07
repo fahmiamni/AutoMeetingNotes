@@ -15,12 +15,10 @@ if not os.path.isfile(input_file):
 with open(input_file, 'r', encoding='utf-8') as f:
     content = f.read()
 
-# Gemma 4 E2B supports a long context, but keeping a cap helps avoid running
-# out of memory on local machines. Raise this if your hardware can handle it.
-max_chars = int(os.getenv("MAX_INPUT_CHARS", "50000"))
-if len(content) > max_chars:
-    content = content[:max_chars]
-    print(f"Content truncated to {max_chars} characters for local inference.")
+# Long prompts can exceed a 6 GB GPU because attention memory grows quickly.
+# Summarize in chunks first, then summarize those chunk notes into the final file.
+chunk_chars = int(os.getenv("SUMMARY_CHUNK_CHARS", "8000"))
+max_new_tokens = int(os.getenv("SUMMARY_MAX_NEW_TOKENS", "500"))
 
 # Load Gemma 4 E2B instruction model.
 #
@@ -95,39 +93,85 @@ else:
         raise
     input_device = torch.device(device)
 
-# Prompt Gemma to summarize the meeting notes
-messages = [
-    {
-        "role": "system",
-        "content": (
-            "You summarize meeting transcripts into clear Markdown notes. "
-            "Include concise key points, decisions, and action items when present."
-        ),
-    },
-    {
-        "role": "user",
-        "content": f"Summarize these meeting notes:\n\n{content}",
-    },
-]
+def split_text(text: str, size: int) -> list[str]:
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = min(start + size, len(text))
+        if end < len(text):
+            split_at = max(text.rfind("\n", start, end), text.rfind(". ", start, end))
+            if split_at > start + size // 2:
+                end = split_at + 1
+        chunks.append(text[start:end].strip())
+        start = end
+    return [chunk for chunk in chunks if chunk]
 
-text = processor.apply_chat_template(
-    messages,
-    tokenize=False,
-    add_generation_prompt=True,
-    enable_thinking=False
-)
-inputs = processor(text=text, return_tensors="pt").to(input_device)
-input_len = inputs["input_ids"].shape[-1]
 
-with torch.inference_mode():
-    outputs = model.generate(
-        **inputs,
-        max_new_tokens=1200,
-        do_sample=False,
-        pad_token_id=processor.tokenizer.eos_token_id,
+def generate_summary(prompt: str, token_budget: int) -> str:
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You summarize meeting transcripts into clear Markdown notes. "
+                "Include concise key points, decisions, and action items when present. "
+                "Use plain ASCII Markdown with no emoji."
+            ),
+        },
+        {"role": "user", "content": prompt},
+    ]
+    text = processor.apply_chat_template(
+        messages,
+        tokenize=False,
+        add_generation_prompt=True,
+        enable_thinking=False,
     )
+    inputs = processor(text=text, return_tensors="pt").to(input_device)
+    input_len = inputs["input_ids"].shape[-1]
 
-summary = processor.decode(outputs[0][input_len:], skip_special_tokens=True).strip()
+    with torch.inference_mode():
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=token_budget,
+            do_sample=False,
+            pad_token_id=processor.tokenizer.eos_token_id,
+        )
+
+    result = processor.decode(outputs[0][input_len:], skip_special_tokens=True).strip()
+    del inputs, outputs
+    if input_device.type == "cuda":
+        torch.cuda.empty_cache()
+    return result
+
+
+chunks = split_text(content, chunk_chars)
+if len(chunks) == 1:
+    summary = generate_summary(
+        f"Summarize these meeting notes:\n\n{content}",
+        max_new_tokens,
+    )
+else:
+    print(f"Transcript split into {len(chunks)} chunks of about {chunk_chars} characters.")
+    chunk_summaries = []
+    for index, chunk in enumerate(chunks, start=1):
+        print(f"Summarizing chunk {index}/{len(chunks)}...")
+        chunk_summaries.append(
+            generate_summary(
+                "Summarize this transcript chunk. Keep names, decisions, "
+                f"field/prospect names, and action items:\n\n{chunk}",
+                max_new_tokens,
+            )
+        )
+
+    combined_notes = "\n\n".join(
+        f"## Chunk {index}\n{chunk_summary}"
+        for index, chunk_summary in enumerate(chunk_summaries, start=1)
+    )
+    summary = generate_summary(
+        "Combine these chunk summaries into one clean Markdown meeting summary. "
+        "Include sections for key discussion points, decisions, and action items:\n\n"
+        f"{combined_notes}",
+        1000,
+    )
 
 # Save the summary to output directory
 output_filename = '05_summarize.md'
