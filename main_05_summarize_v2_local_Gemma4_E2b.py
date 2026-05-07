@@ -1,18 +1,19 @@
 import os
 import importlib.util
+from pathlib import Path
 import torch
 from transformers import AutoModelForCausalLM, AutoProcessor
 
 # Input and output paths
-input_file = os.path.join('output', '02_transcription.md')
-output_dir = 'output'
+output_dir = Path('output')
+input_file = output_dir / '02_transcription.md'
 
 # Read the transcription content
-if not os.path.isfile(input_file):
+if not input_file.is_file():
     print(f"No transcription file found at {input_file}.")
     exit(1)
 
-with open(input_file, 'r', encoding='utf-8') as f:
+with input_file.open('r', encoding='utf-8') as f:
     content = f.read()
 
 # Long prompts can exceed a 6 GB GPU because attention memory grows quickly.
@@ -143,6 +144,30 @@ def generate_summary(prompt: str, token_budget: int) -> str:
     return result
 
 
+def find_original_transcription_path() -> Path | None:
+    """Find the original-name transcript saved beside 02_transcription.md."""
+    excluded_names = {'02_transcription.md', '05_summarize.md'}
+    candidates = [
+        path for path in output_dir.glob('*.md')
+        if path.name not in excluded_names and not path.stem.endswith('_summary')
+    ]
+
+    sorted_candidates = sorted(
+        candidates,
+        key=lambda item: item.stat().st_mtime,
+        reverse=True,
+    )
+
+    for path in sorted_candidates:
+        try:
+            if path.read_text(encoding='utf-8') == content:
+                return path
+        except OSError:
+            continue
+
+    return sorted_candidates[0] if sorted_candidates else None
+
+
 chunks = split_text(content, chunk_chars)
 if len(chunks) == 1:
     summary = generate_summary(
@@ -174,10 +199,19 @@ else:
     )
 
 # Save the summary to output directory
-output_filename = '05_summarize.md'
-output_file = os.path.join(output_dir, output_filename)
-os.makedirs(output_dir, exist_ok=True)
-with open(output_file, 'w', encoding='utf-8') as f:
-    f.write(summary)
+output_file = output_dir / '05_summarize.md'
+original_transcription_path = find_original_transcription_path()
+original_name_output_path = (
+    output_dir / f'{original_transcription_path.stem}_summary.md'
+    if original_transcription_path
+    else None
+)
+
+output_dir.mkdir(parents=True, exist_ok=True)
+output_file.write_text(summary, encoding='utf-8')
+if original_name_output_path:
+    original_name_output_path.write_text(summary, encoding='utf-8')
 
 print(f"Summary generated and saved to {output_file}")
+if original_name_output_path:
+    print(f"Summary also saved with original file name: {original_name_output_path}")
