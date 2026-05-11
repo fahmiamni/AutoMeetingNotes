@@ -12,5 +12,5 @@ def run_step(script_name: str) -> None:
 
 
 run_step("main_02_transcribe_v4_ProcessLatest.py")
-run_step("main_05_summarize_v3_API_DeepseekCheap.py")
+run_step("main_05_summarize_v2.1_local_Gemma4_E2b_NoChunk.py")
 
