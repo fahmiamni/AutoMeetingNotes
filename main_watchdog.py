@@ -10,6 +10,7 @@ COOLDOWN_SECONDS = 2
 
 class DriveChangeHandler(FileSystemEventHandler):
     def __init__(self):
+        
         self.last_run_at = 0
 
     def launch_automation(self, event_type, path):
