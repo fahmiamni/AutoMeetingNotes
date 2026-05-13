@@ -1,5 +1,6 @@
 import os
 import time
+from datetime import datetime
 from pathlib import Path
 
 import requests
@@ -10,6 +11,7 @@ load_dotenv()
 
 output_dir = Path('output')
 input_file = output_dir / '02_transcription.md'
+obsidian_dir = Path(r'C:\Users\ASUS\Documents\famb vault')
 
 api_key = os.getenv('OPENROUTER_API_KEY')
 if not api_key:
@@ -98,6 +100,10 @@ def find_original_transcription_path() -> Path | None:
     return sorted_candidates[0] if sorted_candidates else None
 
 
+def safe_filename_part(value: str) -> str:
+    return ''.join(char if char.isalnum() or char in ('-', '_', '.') else '_' for char in value)
+
+
 start_time = time.time()
 print(f"Summarizing full transcript with {model_name}...")
 summary = call_openrouter(
@@ -113,20 +119,27 @@ summary = call_openrouter(
 
 output_file = output_dir / '05_summarize.md'
 original_transcription_path = find_original_transcription_path()
+timestamp_prefix = datetime.now().strftime('%Y-%m-%d_%H_%M_%S')
+safe_model_name = safe_filename_part(model_name)
+base_name = original_transcription_path.stem if original_transcription_path else input_file.stem
 original_name_output_path = (
     output_dir / f'{original_transcription_path.stem}_summary.md'
     if original_transcription_path
     else None
 )
+obsidian_output_path = obsidian_dir / f'{timestamp_prefix}_{base_name}_summary_{safe_model_name}.md'
 
 output_dir.mkdir(parents=True, exist_ok=True)
+obsidian_dir.mkdir(parents=True, exist_ok=True)
 output_file.write_text(summary, encoding='utf-8')
 if original_name_output_path:
     original_name_output_path.write_text(summary, encoding='utf-8')
+obsidian_output_path.write_text(summary, encoding='utf-8')
 
 print(f"Summary generated with {model_name} and saved to {output_file}")
 if original_name_output_path:
     print(f"Summary also saved with original file name: {original_name_output_path}")
+print(f"Summary also saved to Obsidian vault: {obsidian_output_path}")
 
 elapsed_time = time.time() - start_time
 print(f"Time taken to run the code (summarization): {elapsed_time / 60:.2f} minutes")
