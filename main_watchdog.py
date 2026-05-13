@@ -1,11 +1,14 @@
 import time
 import subprocess
+import sys
+from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 # --- CONFIGURATION ---
 WATCH_PATH = r"G:\My Drive"
-BATCH_FILE_PATH = r"D:\11 MY APP\18 Auto_Meeting_Notes_Compile\main..bat"
+PROJECT_DIR = Path(__file__).resolve().parent
+MAIN_SCRIPT_PATH = PROJECT_DIR / "main.py"
 COOLDOWN_SECONDS = 2
 
 class DriveChangeHandler(FileSystemEventHandler):
@@ -21,7 +24,7 @@ class DriveChangeHandler(FileSystemEventHandler):
         self.last_run_at = now
         print(f"{event_type} detected: {path}")
         print("Launching automation...")
-        subprocess.Popen([BATCH_FILE_PATH], shell=True)
+        subprocess.Popen([sys.executable, str(MAIN_SCRIPT_PATH)], cwd=PROJECT_DIR)
 
     def on_created(self, event):
         if not event.is_directory:
