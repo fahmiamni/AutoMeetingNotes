@@ -11,9 +11,15 @@ def run_step(script_name: str) -> None:
     subprocess.run([sys.executable, script_name], check=True, env=env)
 
 
-run_step("main_02_transcribe_v4_ProcessLatest.py")
-#run_step("main_05_summarize_v2.1_local_Gemma4_E2b_NoChunk.py")
-#run_step("main_05_summarize_v3.1_API_DeepseekCheap_NoChunk.py")
-run_step("main_05_summarize_v4_openrouter.py")
+print("=" * 60)
+print("BATCH PROCESSING: All MP3 files in G:\\My Drive")
+print("=" * 60)
+
+run_step("main_02_transcribe_batch.py")
+run_step("main_05_summarize_batch.py")
+
+print("=" * 60)
+print("Batch processing completed!")
+print("=" * 60)
 
 
