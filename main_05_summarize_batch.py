@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import argparse
 from datetime import datetime
 from pathlib import Path
 
@@ -111,9 +112,17 @@ def summarize_file(input_path: Path) -> None:
     print(f"    Summarization time: {elapsed_time / 60:.2f} minutes")
 
 
-def get_all_transcription_files(obsidian_dir: Path) -> list[Path]:
+def get_all_transcription_files(obsidian_dir: Path, new_only: bool = False) -> list[Path]:
     transcription_files = list(output_dir.glob('*.md'))
     transcription_files = [f for f in transcription_files if not f.name.endswith('_summary.md') and f.name != '02_transcription.md' and f.name != '05_summarize.md']
+    
+    if new_only:
+        summarized_stems = {f.stem.replace('_summary', '') for f in output_dir.glob('*_summary.md')}
+        unprocessed = [f for f in transcription_files if f.stem not in summarized_stems]
+        for f in transcription_files:
+            if f.stem in summarized_stems:
+                print(f'  Skipping (already summarized): {f.stem}')
+        return unprocessed
     
     processed_stems = set()
     if obsidian_dir.exists():
@@ -134,7 +143,11 @@ def get_all_transcription_files(obsidian_dir: Path) -> list[Path]:
 
 
 if __name__ == '__main__':
-    unprocessed_files = get_all_transcription_files(obsidian_dir)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--new-only', action='store_true', help='Only process new files (skip if already summarized)')
+    args = parser.parse_args()
+    
+    unprocessed_files = get_all_transcription_files(obsidian_dir, args.new_only)
     
     if not unprocessed_files:
         print('No unprocessed transcription files found.')

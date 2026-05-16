@@ -1,5 +1,6 @@
 import sys
 import subprocess
+import argparse
 from pathlib import Path
 import torch
 import whisper
@@ -10,7 +11,7 @@ def install(package):
     subprocess.check_call([sys.executable, '-m', 'pip', 'install', package])
 
 
-input_dir = Path(r'G:\My Drive')
+input_dir = Path('input')
 output_dir = Path('output')
 output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -45,12 +46,20 @@ def transcribe_single_file(mp3_path: Path) -> Path:
     return saved_path
 
 
-def get_all_unprocessed_mp3s(obsidian_dir: Path) -> list[Path]:
+def get_all_unprocessed_mp3s(obsidian_dir: Path, new_only: bool = False) -> list[Path]:
     mp3_files = sorted(input_dir.glob('*.mp3'))
     
     if not mp3_files:
         print(f'No MP3 files found in {input_dir}')
         return []
+    
+    if new_only:
+        transcribed_stems = {f.stem for f in output_dir.glob('*.md')}
+        unprocessed = [f for f in mp3_files if f.stem not in transcribed_stems]
+        for mp3 in mp3_files:
+            if mp3.stem in transcribed_stems:
+                print(f'  Skipping (already transcribed): {mp3.name}')
+        return unprocessed
     
     processed_stems = set()
     if obsidian_dir.exists():
@@ -71,11 +80,15 @@ def get_all_unprocessed_mp3s(obsidian_dir: Path) -> list[Path]:
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--new-only', action='store_true', help='Only process new files (skip if already transcribed)')
+    args = parser.parse_args()
+    
     obsidian_dir = Path(r'C:\Users\ASUS\Documents\famb vault')
     
     start_time = time.time()
     
-    unprocessed_files = get_all_unprocessed_mp3s(obsidian_dir)
+    unprocessed_files = get_all_unprocessed_mp3s(obsidian_dir, args.new_only)
     
     if not unprocessed_files:
         print('No unprocessed MP3 files found.')
