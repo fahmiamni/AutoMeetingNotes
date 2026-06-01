@@ -32,7 +32,7 @@ content = input_file.read_text(encoding='utf-8')
 # switch models/endpoints without code edits.
 api_url = os.getenv('DEEPSEEK_API_URL', 'https://api.deepseek.com/chat/completions')
 model_name = os.getenv('DEEPSEEK_MODEL', 'deepseek-v4-flash')
-max_tokens = int(os.getenv('SUMMARY_MAX_TOKENS', '30000'))
+max_tokens = int(os.getenv('SUMMARY_MAX_TOKENS', '200000'))
 timeout_seconds = int(os.getenv('DEEPSEEK_TIMEOUT_SECONDS', '180'))
 
 
