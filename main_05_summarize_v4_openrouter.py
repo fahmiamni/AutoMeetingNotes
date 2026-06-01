@@ -30,10 +30,10 @@ content = input_file.read_text(encoding='utf-8')
 api_url = os.getenv('OPENROUTER_API_URL', 'https://openrouter.ai/api/v1/chat/completions')
 
 #model_name = os.getenv('OPENROUTER_MODEL', 'openai/gpt-5.5')
-#model_name = os.getenv('OPENROUTER_MODEL', 'google/gemini-3-flash-preview')
+model_name = os.getenv('OPENROUTER_MODEL', 'google/gemini-3-flash-preview')
 #model_name = os.getenv('OPENROUTER_MODEL', 'deepseek/deepseek-v4-flash')
 #model_name = os.getenv('OPENROUTER_MODEL', 'deepseek/deepseek-chat')
-model_name = os.getenv('OPENROUTER_MODEL', 'minimax/minimax-m2.7')
+#model_name = os.getenv('OPENROUTER_MODEL', 'minimax/minimax-m2.7')
 
 max_tokens = int(os.getenv('SUMMARY_MAX_TOKENS', '30000'))
 timeout_seconds = int(os.getenv('OPENROUTER_TIMEOUT_SECONDS', '180'))
