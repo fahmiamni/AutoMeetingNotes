@@ -8,6 +8,7 @@
 # such as `small` or `tiny`.
 
 # Install required Python packages if not already installed
+import os
 import sys
 import subprocess
 
@@ -25,6 +26,7 @@ for pkg in packages:
 '''
 
 from pathlib import Path
+import numpy as np
 import torch
 import whisper
 import time
@@ -44,10 +46,71 @@ print(f'Loading Whisper model: {model_name} on {device}')
 model = whisper.load_model(model_name, device=device)
 
 
+# Chunking settings (adjust via env vars if needed)
+SAMPLE_RATE = 16000
+CHUNK_SECONDS = int(os.getenv('WHISPER_CHUNK_SECONDS', '30'))
+OVERLAP_SECONDS = int(os.getenv('WHISPER_OVERLAP_SECONDS', '5'))
+STEP_SECONDS = CHUNK_SECONDS - OVERLAP_SECONDS
+
+
+def split_audio_into_chunks(audio_path: str):
+    """Load audio and split into overlapping fixed-length chunks.
+    Returns list of (start_time_in_seconds, audio_chunk_array)."""
+    audio = whisper.load_audio(audio_path)
+    total_samples = len(audio)
+    chunk_samples = CHUNK_SECONDS * SAMPLE_RATE
+    step_samples = STEP_SECONDS * SAMPLE_RATE
+
+    chunks = []
+    start = 0
+    while start < total_samples:
+        end = min(start + chunk_samples, total_samples)
+        chunk = audio[start:end]
+        if len(chunk) < chunk_samples:
+            chunk = np.pad(chunk, (0, chunk_samples - len(chunk)))
+        chunks.append((start / SAMPLE_RATE, chunk))
+        start += step_samples
+
+    return chunks
+
+
+def merge_chunk_texts(chunks):
+    """Merge transcribed chunks, trimming overlap from each chunk after the first.
+    chunks: list of (start_time, text) sorted by start_time."""
+    if not chunks:
+        return ""
+    chunks.sort(key=lambda x: x[0])
+    overlap_ratio = OVERLAP_SECONDS / CHUNK_SECONDS
+    full_text = chunks[0][1]
+    for i in range(1, len(chunks)):
+        curr_text = chunks[i][1]
+        words = curr_text.split()
+        skip_count = int(len(words) * overlap_ratio)
+        skip_count = min(skip_count, len(words) - 3)
+        if skip_count > 0:
+            curr_text = ' '.join(words[skip_count:])
+        full_text += '\n' + curr_text
+    return full_text.strip()
+
+
 def transcribe_mp3_file(mp3_path: Path) -> str:
-    """Transcribe a single MP3 file locally using Whisper."""
-    result = model.transcribe(str(mp3_path))
-    return result['text']
+    """Transcribe a single MP3 file locally using Whisper with chunked processing."""
+    audio_chunks = split_audio_into_chunks(str(mp3_path))
+
+    if len(audio_chunks) == 1:
+        result = model.transcribe(audio_chunks[0][1])
+        return result['text']
+
+    print(f'  Audio split into {len(audio_chunks)} chunks ({CHUNK_SECONDS}s ea, {OVERLAP_SECONDS}s overlap)')
+    results = []
+    for i, (start_time, chunk_audio) in enumerate(audio_chunks):
+        end_time = start_time + CHUNK_SECONDS
+        print(f'  Transcribing chunk {i+1}/{len(audio_chunks)} ({start_time:.0f}s - {end_time:.0f}s)...')
+        result = model.transcribe(chunk_audio)
+        text = result['text'].strip()
+        results.append((start_time, text))
+
+    return merge_chunk_texts(results)
 
 def save_transcription_md(text: str, source_path: Path) -> tuple[Path, Path]:
     original_name_output_path = output_dir / f'{source_path.stem}.md'
