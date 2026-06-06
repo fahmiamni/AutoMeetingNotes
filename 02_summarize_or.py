@@ -19,7 +19,7 @@ if not api_key:
         "Error: OPENROUTER_API_KEY not found.\n\n"
         "Set it before running, for example:\n"
         "  $env:OPENROUTER_API_KEY='your_api_key_here'\n"
-        "  .\\.venv312\\Scripts\\python.exe main_05_summarize_openrouter.py"
+        "  .\\.venv312\\Scripts\\python.exe 02_summarize_or.py"
     )
 
 if not input_file.is_file():

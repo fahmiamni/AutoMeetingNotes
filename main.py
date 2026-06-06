@@ -11,9 +11,9 @@ def run_step(script_name: str) -> None:
     subprocess.run([sys.executable, script_name], check=True, env=env)
 
 
-run_step("main_02_transcribe_v4_ProcessLatest.py")
-#run_step("main_05_summarize_v2.1_local_Gemma4_E2b_NoChunk.py")
-run_step("main_05_summarize_v3.1_API_DeepseekCheap_NoChunk.py")
-#run_step("main_05_summarize_v4_openrouter.py")
+run_step("01_transcribe.py")
+#run_step("02_summarize_gemma.py")
+run_step("02_summarize_ds.py")
+#run_step("02_summarize_or.py")
 
 
