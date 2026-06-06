@@ -14,6 +14,7 @@ networkx==3.6.1
 numba==0.65.1
 numpy==2.4.3
 openai-whisper==20250625
+faster-whisper==1.2.0
 pillow==12.1.1
 python-dotenv==1.2.2
 regex==2026.4.4
