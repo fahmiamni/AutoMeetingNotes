@@ -11,7 +11,13 @@ load_dotenv()
 
 # Input and output paths
 output_dir = Path('output')
-input_file = output_dir / '02_transcription.md'
+output_latest = output_dir / 'latest'
+output_transcripts = output_dir / 'transcripts'
+output_summaries = output_dir / 'summaries'
+input_file = output_latest / '02_transcription.md'
+output_latest.mkdir(parents=True, exist_ok=True)
+output_transcripts.mkdir(parents=True, exist_ok=True)
+output_summaries.mkdir(parents=True, exist_ok=True)
 obsidian_dir = Path(os.getenv('OBSIDIAN_VAULT_DIR', r'C:\Users\ASUS\Documents\famb vault'))
 
 api_key = os.getenv('DEEPSEEK_API_KEY')
@@ -74,10 +80,9 @@ def call_deepseek(prompt: str, token_budget: int) -> str:
 
 def find_original_transcription_path() -> Path | None:
     """Find the original-name transcript saved beside 02_transcription.md."""
-    excluded_names = {'02_transcription.md', '05_summarize.md'}
     candidates = [
-        path for path in output_dir.glob('*.md')
-        if path.name not in excluded_names and not path.stem.endswith('_summary')
+        path for path in output_transcripts.glob('*.md')
+        if not path.stem.endswith('_summary')
     ]
 
     sorted_candidates = sorted(
@@ -113,19 +118,18 @@ summary = call_deepseek(
     max_tokens,
 )
 
-output_file = output_dir / '05_summarize.md'
+output_file = output_latest / '05_summarize.md'
 original_transcription_path = find_original_transcription_path()
 timestamp_prefix = datetime.now().strftime('%Y-%m-%d_%H_%M_%S')
 safe_model_name = safe_filename_part(model_name)
 base_name = original_transcription_path.stem if original_transcription_path else input_file.stem
 original_name_output_path = (
-    output_dir / f'{original_transcription_path.stem}_summary.md'
+    output_summaries / f'{original_transcription_path.stem}_summary.md'
     if original_transcription_path
     else None
 )
 obsidian_output_path = obsidian_dir / f'{timestamp_prefix}_{base_name}_summary_{safe_model_name}.md'
 
-output_dir.mkdir(parents=True, exist_ok=True)
 obsidian_dir.mkdir(parents=True, exist_ok=True)
 output_file.write_text(summary, encoding='utf-8')
 if original_name_output_path:

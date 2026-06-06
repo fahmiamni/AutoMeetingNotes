@@ -58,7 +58,10 @@ def load_audio(audio_path: str) -> np.ndarray:
 # IO paths
 input_dir = Path(r'G:\My Drive')
 output_dir = Path('output')
-output_dir.mkdir(parents=True, exist_ok=True)
+output_latest = output_dir / 'latest'
+output_transcripts = output_dir / 'transcripts'
+output_latest.mkdir(parents=True, exist_ok=True)
+output_transcripts.mkdir(parents=True, exist_ok=True)
 
 # Device / compute type
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -161,8 +164,8 @@ def transcribe_mp3_file(mp3_path: Path) -> str:
 
 
 def save_transcription_md(text: str, source_path: Path) -> tuple[Path, Path]:
-    original_name_output_path = output_dir / f'{source_path.stem}.md'
-    output_path = output_dir / '02_transcription.md'
+    original_name_output_path = output_transcripts / f'{source_path.stem}.md'
+    output_path = output_latest / '02_transcription.md'
     header = '# Transcription completed\n\n'
     content = header + text.strip() + '\n'
     output_path.write_text(content, encoding='utf-8')
