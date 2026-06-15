@@ -20,6 +20,7 @@ import numpy as np
 import torch
 import time
 from dotenv import load_dotenv
+from tqdm import tqdm
 
 load_dotenv()
 
@@ -156,11 +157,12 @@ def transcribe_audio_file(audio_path: Path) -> str:
 
     print(f'  Audio split into {len(audio_chunks)} chunks ({CHUNK_SECONDS}s ea, {OVERLAP_SECONDS}s overlap)')
     results = []
-    for i, (start_time, chunk_audio) in enumerate(audio_chunks):
-        end_time = start_time + CHUNK_SECONDS
-        print(f'  Transcribing chunk {i+1}/{len(audio_chunks)} ({start_time:.0f}s - {end_time:.0f}s)...')
-        text = transcribe_chunk(chunk_audio)
-        results.append((start_time, text))
+    with tqdm(audio_chunks, desc='  Transcribing', unit='chunk') as pbar:
+        for start_time, chunk_audio in pbar:
+            end_time = start_time + CHUNK_SECONDS
+            pbar.set_postfix_str(f'{start_time:.0f}s - {end_time:.0f}s')
+            text = transcribe_chunk(chunk_audio)
+            results.append((start_time, text))
 
     return merge_chunk_texts(results)
 
