@@ -1,7 +1,8 @@
 # Audio Transcription Script
 # 
-# This script scans the `input/` folder for MP3 files, transcribes each file locally 
-# using Whisper `large-v3-turbo`, and writes a corresponding Markdown file into the `output/` folder.
+# This script scans the `input/` folder for audio files (.mp3, .m4a, .wav, .ogg, .mp4),
+# transcribes each file locally using Whisper `large-v3-turbo`, and writes a corresponding
+# Markdown file into the `output/` folder.
 #
 # Supports dual Whisper backends (set via WHISPER_BACKEND env var):
 #   - openai-whisper (default): Original OpenAI Whisper
@@ -36,6 +37,7 @@ def install(package):
 
 
 SAMPLE_RATE = 16000
+AUDIO_EXTENSIONS = ('.mp3', '.m4a', '.wav', '.ogg', '.mp4')
 
 def load_audio(audio_path: str) -> np.ndarray:
     """Load an audio file and return a 16 kHz mono numpy array.
@@ -145,9 +147,9 @@ else:
 
 
 # ── Unified transcription pipeline ──────────────────────────────────────────
-def transcribe_mp3_file(mp3_path: Path) -> str:
-    """Transcribe a single MP3 file locally using Whisper with chunked processing."""
-    audio_chunks = split_audio_into_chunks(str(mp3_path))
+def transcribe_audio_file(audio_path: Path) -> str:
+    """Transcribe a single audio file locally using Whisper with chunked processing."""
+    audio_chunks = split_audio_into_chunks(str(audio_path))
 
     if len(audio_chunks) == 1:
         return transcribe_chunk(audio_chunks[0][1])
@@ -175,26 +177,29 @@ def save_transcription_md(text: str, source_path: Path) -> tuple[Path, Path]:
 
 # ── Main execution ──────────────────────────────────────────────────────────
 start_time = time.time()
-mp3_files = sorted(input_dir.glob('*.mp3'))
+audio_files = sorted([
+    f for ext in AUDIO_EXTENSIONS
+    for f in input_dir.glob(f'*{ext}')
+])
 
-if not mp3_files:
-    print(f'No MP3 files found in {input_dir}. Add a single MP3 file there and rerun.')
-elif len(mp3_files) > 1:
-    print(f'More than one MP3 file was found in {input_dir}.')
+if not audio_files:
+    print(f'No audio files found in {input_dir}. Supported formats: {", ".join(AUDIO_EXTENSIONS)}')
+elif len(audio_files) > 1:
+    print(f'More than one audio file was found in {input_dir}.')
     print('Found files:')
-    for mp3_file in mp3_files:
-        print(f'  - {mp3_file.name}')
-    mp3_file = mp3_files[-1]
-    print(f'Processing: {mp3_file.name}')
-    transcription_text = transcribe_mp3_file(mp3_file)
-    saved_path, original_name_saved_path = save_transcription_md(transcription_text, mp3_file)
+    for audio_file in audio_files:
+        print(f'  - {audio_file.name}')
+    audio_file = audio_files[-1]
+    print(f'Processing: {audio_file.name}')
+    transcription_text = transcribe_audio_file(audio_file)
+    saved_path, original_name_saved_path = save_transcription_md(transcription_text, audio_file)
     print(f'  Saved markdown: {saved_path}')
     print(f'  Saved original-name markdown: {original_name_saved_path}')
 else:
-    mp3_file = mp3_files[0]
-    print(f'Processing: {mp3_file.name}')
-    transcription_text = transcribe_mp3_file(mp3_file)
-    saved_path, original_name_saved_path = save_transcription_md(transcription_text, mp3_file)
+    audio_file = audio_files[0]
+    print(f'Processing: {audio_file.name}')
+    transcription_text = transcribe_audio_file(audio_file)
+    saved_path, original_name_saved_path = save_transcription_md(transcription_text, audio_file)
     print(f'  Saved markdown: {saved_path}')
     print(f'  Saved original-name markdown: {original_name_saved_path}')
 
