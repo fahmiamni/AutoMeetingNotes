@@ -1,0 +1,8 @@
+@echo off
+
+:: Use CALL to run the activation 
+:: ".venv312\Scripts\python.exe" watchdog.py
+:: ".venv312\Scripts\python.exe" watchdog.py
+
+cd "D:\11 Projects\_shared\venv_312\Scripts" main.py
+pause
