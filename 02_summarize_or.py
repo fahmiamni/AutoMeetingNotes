@@ -1,4 +1,5 @@
 import os
+import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -8,6 +9,65 @@ from dotenv import load_dotenv
 
 
 load_dotenv()
+
+TEMPLATE_PATH = Path(__file__).parent / 'summarizer_template.md'
+
+DEFAULT_SYSTEM_MESSAGE = (
+    'You summarize meeting transcripts into clear Markdown notes. '
+    'Include concise key points, decisions, and action items when present. '
+    'Use plain ASCII Markdown with no emoji.'
+)
+
+DEFAULT_USER_PROMPT = (
+    "Summarize this full meeting transcript into clean Markdown notes.\n\n"
+    "Include these sections when information is present:\n"
+    "- Key discussion points\n"
+    "- Decisions\n"
+    "- Action items with owners and deadlines\n"
+    "- Important names, fields, prospects, clients, or locations\n\n"
+    "Transcript:\n\n{transcript}"
+)
+
+
+def load_template() -> tuple[str, str]:
+    """Load system message and user prompt from summarizer_template.md.
+
+    Template format:
+        <!-- SYSTEM MESSAGE -->
+        <system message text>
+        ---
+        <!-- USER PROMPT -->
+        <user prompt text with {transcript} placeholder>
+
+    Falls back to defaults if the template is missing or malformed.
+    """
+    if not TEMPLATE_PATH.is_file():
+        print(f"Warning: Template not found at {TEMPLATE_PATH}, using defaults.")
+        return DEFAULT_SYSTEM_MESSAGE, DEFAULT_USER_PROMPT
+
+    raw = TEMPLATE_PATH.read_text(encoding='utf-8')
+
+    parts = raw.split('---', 1)
+    if len(parts) != 2:
+        print("Warning: Template missing '---' separator, using defaults.")
+        return DEFAULT_SYSTEM_MESSAGE, DEFAULT_USER_PROMPT
+
+    system_part = parts[0].strip()
+    user_part = parts[1].strip()
+
+    # Strip comment headers like <!-- SYSTEM MESSAGE -->
+    system_msg = re.sub(r'<!--.*?-->\s*', '', system_part).strip()
+    user_prompt = re.sub(r'<!--.*?-->\s*', '', user_part).strip()
+
+    if not system_msg or '{transcript}' not in user_prompt:
+        print("Warning: Template is malformed (missing system message or {transcript} placeholder), using defaults.")
+        return DEFAULT_SYSTEM_MESSAGE, DEFAULT_USER_PROMPT
+
+    return system_msg, user_prompt
+
+
+system_message, user_prompt_template = load_template()
+print(f"Loaded summarizer template from {TEMPLATE_PATH}")
 
 output_dir = Path('output')
 output_latest = output_dir / 'latest'
@@ -57,11 +117,7 @@ def call_openrouter(prompt: str, token_budget: int) -> str:
         'messages': [
             {
                 'role': 'system',
-                'content': (
-                    'You summarize meeting transcripts into clear Markdown notes. '
-                    'Include concise key points, decisions, and action items when present. '
-                    'Use plain ASCII Markdown with no emoji.'
-                ),
+                'content': system_message,
             },
             {'role': 'user', 'content': prompt},
         ],
@@ -112,13 +168,7 @@ def safe_filename_part(value: str) -> str:
 start_time = time.time()
 print(f"Summarizing full transcript with {model_name}...")
 summary = call_openrouter(
-    "Summarize this full meeting transcript into clean Markdown notes.\n\n"
-    "Include these sections when information is present:\n"
-    "- Key discussion points\n"
-    "- Decisions\n"
-    "- Action items with owners and deadlines\n"
-    "- Important names, fields, prospects, clients, or locations\n\n"
-    f"Transcript:\n\n{content}",
+    user_prompt_template.format(transcript=content),
     max_tokens,
 )
 
