@@ -9,7 +9,7 @@ from watchdog.events import FileSystemEventHandler
 WATCH_PATH = r"G:\My Drive"
 PROJECT_DIR = Path(__file__).resolve().parent
 MAIN_SCRIPT_PATH = PROJECT_DIR / "main.py"
-COOLDOWN_SECONDS = 2
+COOLDOWN_SECONDS = 10
 AUDIO_EXTENSIONS = ('.mp3', '.m4a', '.wav', '.ogg', '.mp4')
 
 
@@ -29,7 +29,7 @@ class DriveChangeHandler(FileSystemEventHandler):
         self.last_run_at = now
         print(f"{event_type} detected: {path}")
         print("Launching automation...")
-        subprocess.Popen([sys.executable, str(MAIN_SCRIPT_PATH)], cwd=PROJECT_DIR)
+        subprocess.run([sys.executable, str(MAIN_SCRIPT_PATH)], cwd=PROJECT_DIR)
 
     def on_created(self, event):
         if not event.is_directory and is_audio_file(event.src_path):

@@ -14,6 +14,7 @@
 
 import os
 import sys
+import json
 import subprocess
 from pathlib import Path
 import numpy as np
@@ -177,35 +178,77 @@ def save_transcription_md(text: str, source_path: Path) -> tuple[Path, Path]:
     return output_path, original_name_output_path
 
 
+# ── Processed files tracking ─────────────────────────────────────────────────
+PROCESSED_TRACKER = output_dir / '.processed_files.json'
+BATCH_MANIFEST = output_dir / '.batch_manifest.json'
+
+
+def load_processed_files() -> set:
+    if PROCESSED_TRACKER.is_file():
+        try:
+            data = json.loads(PROCESSED_TRACKER.read_text(encoding='utf-8'))
+            return set(data)
+        except (json.JSONDecodeError, OSError):
+            return set()
+    return set()
+
+
+def save_processed_files(processed: set) -> None:
+    PROCESSED_TRACKER.write_text(
+        json.dumps(sorted(processed), indent=2), encoding='utf-8'
+    )
+
+
+def save_batch_manifest(files: list[dict]) -> None:
+    BATCH_MANIFEST.write_text(
+        json.dumps(files, indent=2), encoding='utf-8'
+    )
+
+
 # ── Main execution ──────────────────────────────────────────────────────────
 start_time = time.time()
-audio_files = sorted([
+
+all_audio_files = sorted([
     f for ext in AUDIO_EXTENSIONS
     for f in input_dir.glob(f'*{ext}')
 ])
 
-if not audio_files:
+if not all_audio_files:
     print(f'No audio files found in {input_dir}. Supported formats: {", ".join(AUDIO_EXTENSIONS)}')
-elif len(audio_files) > 1:
-    print(f'More than one audio file was found in {input_dir}.')
-    print('Found files:')
-    for audio_file in audio_files:
-        print(f'  - {audio_file.name}')
-    audio_file = audio_files[-1]
-    print(f'Processing: {audio_file.name}')
-    transcription_text = transcribe_audio_file(audio_file)
-    saved_path, original_name_saved_path = save_transcription_md(transcription_text, audio_file)
-    print(f'  Saved markdown: {saved_path}')
-    print(f'  Saved original-name markdown: {original_name_saved_path}')
-else:
-    audio_file = audio_files[0]
-    print(f'Processing: {audio_file.name}')
+    print("-" * 50)
+    sys.exit(0)
+
+processed_set = load_processed_files()
+unprocessed = [f for f in all_audio_files if f.name not in processed_set]
+
+print(f'Total audio files found: {len(all_audio_files)}')
+print(f'Already processed: {len(all_audio_files) - len(unprocessed)}')
+print(f'New files to process: {len(unprocessed)}')
+
+if not unprocessed:
+    print('No new audio files to process.')
+    print("-" * 50)
+    sys.exit(0)
+
+batch_results = []
+for idx, audio_file in enumerate(unprocessed, 1):
+    print(f'\n[{idx}/{len(unprocessed)}] Processing: {audio_file.name}')
     transcription_text = transcribe_audio_file(audio_file)
     saved_path, original_name_saved_path = save_transcription_md(transcription_text, audio_file)
     print(f'  Saved markdown: {saved_path}')
     print(f'  Saved original-name markdown: {original_name_saved_path}')
 
+    processed_set.add(audio_file.name)
+    save_processed_files(processed_set)
+
+    batch_results.append({
+        'audio_file': audio_file.name,
+        'transcript_md': str(original_name_saved_path),
+    })
+
+save_batch_manifest(batch_results)
+
 end_time = time.time()
 elapsed_time = end_time - start_time
-print(f'Time taken to run the code (transcription): {elapsed_time / 60:.2f} minutes')
+print(f'\nBatch complete: {len(batch_results)} file(s) transcribed in {elapsed_time / 60:.2f} minutes')
 print("-" * 50)

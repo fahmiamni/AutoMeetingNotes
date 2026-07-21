@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import time
 from datetime import datetime
 from pathlib import Path
@@ -88,19 +89,8 @@ if not api_key:
         "  .\\.venv312\\Scripts\\python.exe 02_summarize_or.py"
     )
 
-if not input_file.is_file():
-    raise SystemExit(f"No transcription file found at {input_file}.")
-
-content = input_file.read_text(encoding='utf-8')
-
 api_url = os.getenv('OPENROUTER_API_URL', 'https://openrouter.ai/api/v1/chat/completions')
-
-#model_name = os.getenv('OPENROUTER_MODEL', 'openai/gpt-5.5')
 model_name = os.getenv('OPENROUTER_MODEL', 'google/gemini-3-flash-preview')
-#model_name = os.getenv('OPENROUTER_MODEL', 'deepseek/deepseek-v4-flash')
-#model_name = os.getenv('OPENROUTER_MODEL', 'deepseek/deepseek-chat')
-#model_name = os.getenv('OPENROUTER_MODEL', 'minimax/minimax-m2.7')
-
 max_tokens = int(os.getenv('SUMMARY_MAX_TOKENS', '30000'))
 timeout_seconds = int(os.getenv('OPENROUTER_TIMEOUT_SECONDS', '180'))
 
@@ -139,61 +129,64 @@ def call_openrouter(prompt: str, token_budget: int) -> str:
     return result['choices'][0]['message']['content'].strip()
 
 
-def find_original_transcription_path() -> Path | None:
-    candidates = [
-        path for path in output_transcripts.glob('*.md')
-        if not path.stem.endswith('_summary')
-    ]
-
-    sorted_candidates = sorted(
-        candidates,
-        key=lambda item: item.stat().st_mtime,
-        reverse=True,
-    )
-
-    for path in sorted_candidates:
-        try:
-            if path.read_text(encoding='utf-8') == content:
-                return path
-        except OSError:
-            continue
-
-    return sorted_candidates[0] if sorted_candidates else None
-
-
 def safe_filename_part(value: str) -> str:
     return ''.join(char if char.isalnum() or char in ('-', '_', '.') else '_' for char in value)
 
+BATCH_MANIFEST = output_dir / '.batch_manifest.json'
+
+
+def summarize_transcript(transcript_content: str, source_name: str) -> None:
+    """Summarize a single transcript and save outputs."""
+    print(f"Summarizing: {source_name} with {model_name}...")
+    summary = call_openrouter(
+        user_prompt_template.format(transcript=transcript_content),
+        max_tokens,
+    )
+
+    safe_source = safe_filename_part(Path(source_name).stem)
+    timestamp_prefix = datetime.now().strftime('%Y-%m-%d_%H_%M_%S')
+    safe_model_name = safe_filename_part(model_name)
+
+    output_file = output_latest / '05_summarize.md'
+    original_name_output_path = output_summaries / f'{safe_source}_summary.md'
+    obsidian_output_path = obsidian_dir / f'{timestamp_prefix}_{safe_source}_summary_{safe_model_name}.md'
+
+    obsidian_dir.mkdir(parents=True, exist_ok=True)
+    output_file.write_text(summary, encoding='utf-8')
+    original_name_output_path.write_text(summary, encoding='utf-8')
+    obsidian_output_path.write_text(summary, encoding='utf-8')
+
+    print(f"  Summary saved to {output_file}")
+    print(f"  Summary saved with original name: {original_name_output_path}")
+    print(f"  Summary saved to Obsidian vault: {obsidian_output_path}")
+
 
 start_time = time.time()
-print(f"Summarizing full transcript with {model_name}...")
-summary = call_openrouter(
-    user_prompt_template.format(transcript=content),
-    max_tokens,
-)
 
-output_file = output_latest / '05_summarize.md'
-original_transcription_path = find_original_transcription_path()
-timestamp_prefix = datetime.now().strftime('%Y-%m-%d_%H_%M_%S')
-safe_model_name = safe_filename_part(model_name)
-base_name = original_transcription_path.stem if original_transcription_path else input_file.stem
-original_name_output_path = (
-    output_summaries / f'{original_transcription_path.stem}_summary.md'
-    if original_transcription_path
-    else None
-)
-obsidian_output_path = obsidian_dir / f'{timestamp_prefix}_{base_name}_summary_{safe_model_name}.md'
-
-obsidian_dir.mkdir(parents=True, exist_ok=True)
-output_file.write_text(summary, encoding='utf-8')
-if original_name_output_path:
-    original_name_output_path.write_text(summary, encoding='utf-8')
-obsidian_output_path.write_text(summary, encoding='utf-8')
-
-print(f"Summary generated with {model_name} and saved to {output_file}")
-if original_name_output_path:
-    print(f"Summary also saved with original file name: {original_name_output_path}")
-print(f"Summary also saved to Obsidian vault: {obsidian_output_path}")
+if BATCH_MANIFEST.is_file():
+    manifest = json.loads(BATCH_MANIFEST.read_text(encoding='utf-8'))
+    if manifest:
+        print(f"Batch mode: {len(manifest)} transcript(s) to summarize.\n")
+        for idx, entry in enumerate(manifest, 1):
+            transcript_path = Path(entry['transcript_md'])
+            audio_name = entry.get('audio_file', transcript_path.stem)
+            if not transcript_path.is_file():
+                print(f"  [{idx}/{len(manifest)}] SKIP - transcript not found: {transcript_path}")
+                continue
+            content = transcript_path.read_text(encoding='utf-8')
+            print(f"  [{idx}/{len(manifest)}] {audio_name}")
+            summarize_transcript(content, audio_name)
+        # Clear the manifest after successful processing
+        BATCH_MANIFEST.write_text('[]', encoding='utf-8')
+    else:
+        print("Batch manifest is empty. Nothing to summarize.")
+else:
+    # Fallback: single-file mode using latest/02_transcription.md
+    input_file = output_latest / '02_transcription.md'
+    if not input_file.is_file():
+        raise SystemExit(f"No transcription file found at {input_file}.")
+    content = input_file.read_text(encoding='utf-8')
+    summarize_transcript(content, input_file.name)
 
 elapsed_time = time.time() - start_time
-print(f"Time taken to run the code (summarization): {elapsed_time / 60:.2f} minutes")
+print(f"\nTime taken to run the code (summarization): {elapsed_time / 60:.2f} minutes")
