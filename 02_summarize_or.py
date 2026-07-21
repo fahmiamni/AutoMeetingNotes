@@ -2,7 +2,6 @@ import os
 import re
 import json
 import time
-from datetime import datetime
 from pathlib import Path
 
 import requests
@@ -144,12 +143,10 @@ def summarize_transcript(transcript_content: str, source_name: str) -> None:
     )
 
     safe_source = safe_filename_part(Path(source_name).stem)
-    timestamp_prefix = datetime.now().strftime('%Y-%m-%d_%H_%M_%S')
-    safe_model_name = safe_filename_part(model_name)
 
     output_file = output_latest / '05_summarize.md'
     original_name_output_path = output_summaries / f'{safe_source}_summary.md'
-    obsidian_output_path = obsidian_dir / f'{timestamp_prefix}_{safe_source}_summary_{safe_model_name}.md'
+    obsidian_output_path = obsidian_dir / f'{safe_source}.md'
 
     obsidian_dir.mkdir(parents=True, exist_ok=True)
     output_file.write_text(summary, encoding='utf-8')
