@@ -20,8 +20,11 @@ AutoMeetingNotes/
 ├── input/                          # Place your MP3 file here
 │   └── (your meeting recording.mp3)
 ├── output/                         # Generated files appear here
-│   ├── 02_transcription.md         # Raw transcript
-│   └── 05_summarize.md             # AI-generated summary
+│   ├── transcripts/                # Named transcript files
+│   ├── summaries/                  # Named summary files
+│   └── latest/                     # Latest run (overwritten each time)
+│       ├── 02_transcription.md     # Raw transcript
+│       └── 05_summarize.md         # AI-generated summary
 ├── Archieve/                       # Older/scratch scripts
 ├── main.py                         # Run this — executes full pipeline
 ├── main_02_transcribe_v1.py       # Transcription (local input folder)
@@ -81,8 +84,8 @@ python main.py
 
 The script will automatically:
 - Find the MP3 file in `input/`
-- Transcribe it → saves `output/02_transcription.md`
-- Summarize it → saves `output/05_summarize.md`
+- Transcribe it → saves `output/latest/02_transcription.md` + `output/transcripts/{name}.md`
+- Summarize it → saves `output/latest/05_summarize.md` + `output/summaries/{name}_summary.md`
 
 ### Google Drive Input (v2)
 
@@ -126,4 +129,4 @@ Full list in `requirements.txt`.
 
 - Only one MP3 file should be in the `input/` folder at a time
 - Summarization input is capped at ~50,000 characters by default (configurable via `MAX_INPUT_CHARS`)
-- Transcript is saved twice: as `02_transcription.md` and as `{original_filename}.md` for easy lookup
+- Transcript is saved to `output/latest/02_transcription.md` and `output/transcripts/{name}.md`; summary to `output/latest/05_summarize.md` and `output/summaries/{name}_summary.md`
