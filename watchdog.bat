@@ -4,6 +4,6 @@
 cd /d "D:\GitHub\Active\AutoMeetingNotes"
 
 :: Run using venv Python directly (bypass broken activate.bat)
-"D:\11 Projects\_shared\venv_312\Scripts\python.exe" main.py
+"D:\11 Projects\_shared\venv_312\Scripts\python.exe" file_watcher.py
 
 pause

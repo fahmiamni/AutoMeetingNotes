@@ -1,12 +1,20 @@
 import time
 import subprocess
+import sys
+from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 # --- CONFIGURATION ---
 WATCH_PATH = r"G:\My Drive"
-BATCH_FILE_PATH = r"D:\11 MY APP\18 Auto_Meeting_Notes_Compile\main..bat"
-COOLDOWN_SECONDS = 2
+PROJECT_DIR = Path(__file__).resolve().parent
+MAIN_SCRIPT_PATH = PROJECT_DIR / "main.py"
+COOLDOWN_SECONDS = 10
+AUDIO_EXTENSIONS = ('.mp3', '.m4a', '.wav', '.ogg', '.mp4')
+
+
+def is_audio_file(path: str) -> bool:
+    return Path(path).suffix.lower() in AUDIO_EXTENSIONS
 
 class DriveChangeHandler(FileSystemEventHandler):
     def __init__(self):
@@ -21,14 +29,14 @@ class DriveChangeHandler(FileSystemEventHandler):
         self.last_run_at = now
         print(f"{event_type} detected: {path}")
         print("Launching automation...")
-        subprocess.Popen([BATCH_FILE_PATH], shell=True)
+        subprocess.run([sys.executable, str(MAIN_SCRIPT_PATH)], cwd=PROJECT_DIR)
 
     def on_created(self, event):
-        if not event.is_directory:
+        if not event.is_directory and is_audio_file(event.src_path):
             self.launch_automation("New file", event.src_path)
 
     def on_modified(self, event):
-        if not event.is_directory:
+        if not event.is_directory and is_audio_file(event.src_path):
             self.launch_automation("File change", event.src_path)
 
 if __name__ == "__main__":
