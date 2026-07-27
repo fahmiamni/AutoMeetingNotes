@@ -6,6 +6,7 @@ from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
+from save_notes import save_notes
 
 
 load_dotenv()
@@ -77,7 +78,6 @@ input_file = output_latest / '02_transcription.md'
 output_latest.mkdir(parents=True, exist_ok=True)
 output_transcripts.mkdir(parents=True, exist_ok=True)
 output_summaries.mkdir(parents=True, exist_ok=True)
-obsidian_dir = Path(r'C:\Users\ASUS\Documents\famb vault')
 
 api_key = os.getenv('OPENROUTER_API_KEY')
 if not api_key:
@@ -146,16 +146,14 @@ def summarize_transcript(transcript_content: str, source_name: str) -> None:
 
     output_file = output_latest / '05_summarize.md'
     original_name_output_path = output_summaries / f'{safe_source}_summary.md'
-    obsidian_output_path = obsidian_dir / f'{safe_source}.md'
 
-    obsidian_dir.mkdir(parents=True, exist_ok=True)
     output_file.write_text(summary, encoding='utf-8')
     original_name_output_path.write_text(summary, encoding='utf-8')
-    obsidian_output_path.write_text(summary, encoding='utf-8')
 
     print(f"  Summary saved to {output_file}")
     print(f"  Summary saved with original name: {original_name_output_path}")
-    print(f"  Summary saved to Obsidian vault: {obsidian_output_path}")
+
+    save_notes(summary, safe_source, save_obsidian=True, save_onenote=True)
 
 
 start_time = time.time()
