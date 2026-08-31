@@ -153,7 +153,7 @@ def summarize_transcript(transcript_content: str, source_name: str) -> None:
     print(f"  Summary saved to {output_file}")
     print(f"  Summary saved with original name: {original_name_output_path}")
 
-    save_notes(summary, safe_source, save_obsidian=True, save_onenote=True)
+    save_notes(summary, safe_source, save_onenote=True)
 
 
 start_time = time.time()
