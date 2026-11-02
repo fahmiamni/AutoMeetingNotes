@@ -4,34 +4,35 @@ Automate your meeting notes — from audio recording to a clean, summarized Mark
 
 ## How It Works
 
-The pipeline has two stages:
+The pipeline has two stages, orchestrated by `main.py`:
 
 ```
-MP3 Audio File  →  [Whisper Transcription]  →  [AI Summarization]  →  Markdown Notes
+Audio File  →  [01_transcribe.py]  →  [02_summarize_or.py]  →  Markdown Notes
+                     Whisper              OpenRouter API           Obsidian / OneNote
 ```
 
-1. **Transcription** — Converts an MP3 recording into raw text using OpenAI's Whisper model (local, no API needed)
-2. **Summarization** — Turns the transcript into clean, structured notes with key points and action items using a local or API-based AI model
+1. **Transcription** (`01_transcribe.py`) — Transcribes audio files locally using Whisper `large-v3-turbo` (via `faster-whisper`, no API needed). Long recordings are processed in 30-second chunks with 5-second overlap.
+2. **Summarization** (`02_summarize_or.py`) — Sends each transcript to OpenRouter and generates clean structured notes, then saves them to your Obsidian vault and OneNote notebook (`save_notes.py`).
 
 ## Project Structure
 
 ```
 AutoMeetingNotes/
-├── input/                          # Place your MP3 file here
-│   └── (your meeting recording.mp3)
 ├── output/                         # Generated files appear here
 │   ├── transcripts/                # Named transcript files
 │   ├── summaries/                  # Named summary files
-│   └── latest/                     # Latest run (overwritten each time)
-│       ├── 02_transcription.md     # Raw transcript
-│       └── 05_summarize.md         # AI-generated summary
-├── Archieve/                       # Older/scratch scripts
-├── main.py                         # Run this — executes full pipeline
-├── main_02_transcribe_v1.py       # Transcription (local input folder)
-├── main_02_transcribe_v2_Gdrive.py # Transcription (reads from Google Drive)
-├── main_02_transcribe_v3_LargeV3.py # Transcription (Whisper large-v3 model)
-├── main_05_summarize_v1_API_Gpt4o_mini.py  # Summarization via OpenAI GPT-4o mini
-├── main_05_summarize_v2_local_Gemma4_E2b.py # Summarization via local Gemma 4 E2B
+│   ├── latest/                     # Latest run (overwritten each time)
+│   │   ├── 02_transcription.md     # Raw transcript
+│   │   └── 05_summarize.md         # AI-generated summary
+│   ├── .processed_files.json       # Audio files already transcribed
+│   ├── .batch_manifest.json        # Transcripts pending summarization
+│   └── .summarized_tracking.json   # Summaries already generated
+├── main.bat                        # Windows launcher (venv Python)
+├── main.py                         # Orchestrator — runs the full pipeline
+├── 01_transcribe.py                # Stage 1: transcription
+├── 02_summarize_or.py              # Stage 2: summarization via OpenRouter
+├── save_notes.py                   # Saves notes to Obsidian + OneNote
+├── summarizer_template.md          # Prompt template for the summarizer
 └── requirements.txt
 ```
 
@@ -45,88 +46,55 @@ cd AutoMeetingNotes
 pip install -r requirements.txt
 ```
 
-### 2. Install Whisper
+Requires **Python 3.12** and a CUDA-enabled GPU (recommended). The default PyTorch build targets CUDA 12.1 — see `--extra-index-url` in `requirements.txt`.
 
-Whisper is required for transcription:
+### 2. Configure `.env`
 
-```bash
-pip install openai-whisper
+```ini
+# Transcription
+WHISPER_BACKEND=faster-whisper
+WHISPER_MODEL=large-v3-turbo
+
+# Summarization
+OPENROUTER_API_KEY=your_key_here
+# OPENROUTER_MODEL=google/gemini-3-flash-preview
+
+# OneNote saving
+MATON_API_KEY=your_key_here
+ONENOTE_NOTEBOOK_NAME=...
+ONENOTE_SECTION_NAME=...
 ```
 
-### 3. Set Up AI Summarization (choose one)
+Full list of optional environment variables:
 
-**Option A — OpenAI API (GPT-4o mini)**
-```bash
-# Add to your environment or .env file
-export OPENAI_API_KEY=your_key_here
-```
-Then edit `main.py` to use `main_05_summarize_v1_API_Gpt4o_mini.py`.
-
-**Option B — Local (Gemma 4 E2B via Hugging Face)**
-```bash
-export HF_MODEL_ID=google/gemma-4-E2B-it
-export HF_LOCAL_FILES_ONLY=0   # Run once to download the model
-python main_05_summarize_v2_local_Gemma4_E2b.py
-```
-
-GPU strongly recommended for local summarization. Set `HF_DEVICE=cuda` if CUDA is available.
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `WHISPER_BACKEND` | `openai-whisper` | `faster-whisper` (recommended) or `openai-whisper` |
+| `WHISPER_MODEL` | `large-v3-turbo` | Whisper model name |
+| `WHISPER_CHUNK_SECONDS` | `30` | Audio chunk length |
+| `WHISPER_OVERLAP_SECONDS` | `5` | Overlap between chunks |
+| `WHISPER_COMPUTE_TYPE` | `float16` (GPU) / `int8` (CPU) | faster-whisper compute type |
+| `WHISPER_CPU_THREADS` | `4` | CPU threads for faster-whisper |
+| `WHISPER_BEAM_SIZE` | `5` | Decode beam size |
+| `OPENROUTER_API_URL` | `https://openrouter.ai/api/v1/chat/completions` | Summarization endpoint |
+| `OPENROUTER_MODEL` | `google/gemini-3-flash-preview` | Summarization model |
+| `SUMMARY_MAX_TOKENS` | `30000` | Max tokens per summary |
+| `OPENROUTER_TIMEOUT_SECONDS` | `180` | API request timeout |
 
 ## Usage
 
-### Standard Flow (local input folder)
+1. Drop your meeting audio (`.mp3`, `.m4a`, `.wav`, `.ogg`, `.mp4`) into **`G:\My Drive`** (Google Drive desktop folder — this path is configured in `01_transcribe.py`)
+2. Run `main.bat` (or `python main.py`)
 
-1. Drop your meeting MP3 into the `input/` folder
-2. Run:
+The pipeline will automatically:
+- Transcribe each new audio file → `output/latest/02_transcription.md` + `output/transcripts/{name}.md`
+- Summarize each transcript → `output/latest/05_summarize.md` + `output/summaries/{name}_summary.md`
+- Save each summary to your Obsidian vault and OneNote notebook
 
-```bash
-python main.py
-```
-
-The script will automatically:
-- Find the MP3 file in `input/`
-- Transcribe it → saves `output/latest/02_transcription.md` + `output/transcripts/{name}.md`
-- Summarize it → saves `output/latest/05_summarize.md` + `output/summaries/{name}_summary.md`
-
-### Google Drive Input (v2)
-
-If you want to read directly from Google Drive, edit `main_02_transcribe_v2_Gdrive.py` and set:
-
-```python
-input_dir = Path(r'G:\My Drive')  # Your GDrive path
-```
-
-### Choose Transcription Version
-
-| Script | Model | Input Source |
-|--------|-------|-------------|
-| `main_02_transcribe_v1.py` | Whisper large-v3-turbo | `input/` folder |
-| `main_02_transcribe_v2_Gdrive.py` | Whisper large-v3-turbo | Google Drive |
-| `main_02_transcribe_v3_LargeV3.py` | Whisper large-v3 | Custom path |
-
-To switch, edit `main.py` and change the script path before running.
-
-### Choose Summarization Method
-
-Edit `main.py` and uncomment the summarizer you want to use:
-
-```python
-run_script("main_05_summarize_v1_API_Gpt4o_mini.py")    # OpenAI API
-run_script("main_05_summarize_v2_local_Gemma4_E2b.py")  # Local Gemma 4
-```
-
-## Requirements
-
-- Python 3.10+
-- PyTorch (CUDA recommended)
-- `openai-whisper`
-- `transformers` + `accelerate` (for local Gemma)
-- `openai` (for API summarization)
-- `python-dotenv`
-
-Full list in `requirements.txt`.
+Already-processed audio files are skipped on subsequent runs.
 
 ## Notes
 
-- Only one MP3 file should be in the `input/` folder at a time
+- The summarizer prompt comes from `summarizer_template.md` (system message + `---` + user prompt with a `{transcript}` placeholder); the script falls back to built-in defaults if missing or malformed
 - Summarization input is capped at ~50,000 characters by default (configurable via `MAX_INPUT_CHARS`)
-- Transcript is saved to `output/latest/02_transcription.md` and `output/transcripts/{name}.md`; summary to `output/latest/05_summarize.md` and `output/summaries/{name}_summary.md`
+- Summaries are saved to Obsidian at `C:\Users\ASUS\Documents\famb vault` (hardcoded in `save_notes.py`)
