@@ -9,6 +9,7 @@ faster-whisper==1.2.0
 numpy==2.5.0
 torch==2.5.1+cu121
 tqdm==4.68.3
+av==14.2.0
 
 # Summarization & note saving
 requests==2.34.2
