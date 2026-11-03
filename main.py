@@ -12,7 +12,6 @@ def run_step(script_name: str) -> None:
 
 
 run_step("01_transcribe.py")
-#run_step("02_summarize_gemma.py")
 run_step("02_summarize_or.py")
 
 

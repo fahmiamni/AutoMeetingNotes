@@ -1,7 +1,13 @@
 @echo off
 
-:: Use CALL to run the activation 
-".venv312\Scripts\python.exe" main_watchdog.py
-:: ".venv312\Scripts\python.exe" main.py
- 
-:: pause
+:: Change directory to where main.py is located
+::cd /d "D:\GitHub\Active\AutoMeetingNotes"
+cd /d "%~dp0"
+
+
+:: Run using venv Python directly (bypass broken activate.bat)
+::"D:\GitHub\Active\AutoMeetingNotes\.venv\Scripts\python.exe" main.py
+"%~dp0.venv\Scripts\python.exe" main.py
+
+
+pause

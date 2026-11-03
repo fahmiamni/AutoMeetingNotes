@@ -18,7 +18,6 @@ import json
 import subprocess
 from pathlib import Path
 import numpy as np
-import torch
 import time
 from dotenv import load_dotenv
 from tqdm import tqdm
@@ -67,11 +66,9 @@ output_transcripts = output_dir / 'transcripts'
 output_latest.mkdir(parents=True, exist_ok=True)
 output_transcripts.mkdir(parents=True, exist_ok=True)
 
-# Device / compute type
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+# Device / compute type (CPU-only)
+device = 'cpu'
 print(f'Using device: {device}')
-if device == 'cpu':
-    print('Torch CUDA is not available. Install a CUDA-enabled PyTorch build to use GPU.')
 
 model_name = os.getenv('WHISPER_MODEL', 'large-v3-turbo')
 
