@@ -59,7 +59,7 @@ def load_audio(audio_path: str) -> np.ndarray:
 
 
 # IO paths
-input_dir = Path(r'G:\My Drive')
+input_dir = Path(os.getenv('INPUT_DIR', 'input'))
 output_dir = Path('output')
 output_latest = output_dir / 'latest'
 output_transcripts = output_dir / 'transcripts'
