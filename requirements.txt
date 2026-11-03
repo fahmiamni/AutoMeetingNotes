@@ -1,13 +1,13 @@
 # AutoMeetingNotes dependencies (verified against venv_312 / Python 3.12)
-# PyTorch CUDA 12.1 build
---extra-index-url https://download.pytorch.org/whl/cu121
+# NOTE: torch is intentionally NOT listed. The active backend (faster-whisper)
+# runs on CTranslate2 and does not use torch at all. torch (~4 GB for the CUDA
+# build) is only needed if you switch to the optional openai-whisper backend.
 
 # Transcription (active backend: faster-whisper, set via WHISPER_BACKEND)
 faster-whisper==1.2.0
 
 # Transcription shared dependencies
 numpy==2.5.0
-torch==2.5.1+cu121
 tqdm==4.68.3
 av==14.2.0
 
@@ -16,6 +16,8 @@ requests==2.34.2
 markdown==3.7
 python-dotenv==1.2.2
 
-# Optional: original OpenAI Whisper backend (pip install openai-whisper
-# and set WHISPER_BACKEND=openai-whisper to use it)
+# Optional: original OpenAI Whisper backend — requires PyTorch. If you want it:
+#   pip install torch      (CPU-only build is ~200 MB; CUDA build is ~4 GB)
+#   pip install openai-whisper
+#   set WHISPER_BACKEND=openai-whisper
 # openai-whisper==20250625
