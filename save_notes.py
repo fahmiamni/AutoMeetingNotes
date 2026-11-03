@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-OBSIDIAN_VAULT = Path(r'C:\Users\ASUS\Documents\famb vault')
 MATON_BASE_URL = 'https://api.maton.ai'
 
 
@@ -90,15 +89,6 @@ def _markdown_to_onenote_html(title: str, md_content: str) -> str:
     )
 
 
-def save_to_obsidian(content: str, filename_stem: str) -> Path:
-    """Save markdown content to Obsidian vault."""
-    OBSIDIAN_VAULT.mkdir(parents=True, exist_ok=True)
-    output_path = OBSIDIAN_VAULT / f'{filename_stem}.md'
-    output_path.write_text(content, encoding='utf-8')
-    print(f"  Saved to Obsidian vault: {output_path}")
-    return output_path
-
-
 def save_to_onenote(content: str, title: str) -> str | None:
     """Save markdown content to OneNote via Maton API.
 
@@ -134,11 +124,8 @@ def save_to_onenote(content: str, title: str) -> str | None:
 def save_notes(
     content: str,
     filename_stem: str,
-    save_obsidian: bool = True,
     save_onenote: bool = True,
 ) -> None:
     """Save meeting notes to configured destinations."""
-    if save_obsidian:
-        save_to_obsidian(content, filename_stem)
     if save_onenote:
         save_to_onenote(content, filename_stem)
