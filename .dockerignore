@@ -1,0 +1,10 @@
+.git
+.gitattributes
+.venv
+__pycache__
+output
+input
+.env
+.vscode
+*.bat
+README.md

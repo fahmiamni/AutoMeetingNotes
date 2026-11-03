@@ -1,0 +1,29 @@
+services:
+  transcriber:
+    build: .
+    image: automeetingnotes:latest
+    command: python 01_transcribe.py
+    restart: "no"
+    env_file: .env
+    environment:
+      INPUT_DIR: /app/input
+    volumes:
+      - pipeline-output:/app/output
+      - hf-cache:/root/.cache/huggingface
+      - ${INPUT_DIR:-./input}:/app/input
+
+  summarizer:
+    image: automeetingnotes:latest
+    command: python 02_summarize_or.py
+    restart: "no"
+    env_file: .env
+    depends_on:
+      transcriber:
+        condition: service_completed_successfully
+    volumes:
+      - pipeline-output:/app/output
+      - hf-cache:/root/.cache/huggingface
+
+volumes:
+  pipeline-output:
+  hf-cache:
