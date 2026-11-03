@@ -4,15 +4,15 @@ Automate your meeting notes — from audio recording to a clean, summarized Mark
 
 ## How It Works
 
-The pipeline has two stages, orchestrated by `main.py`:
+The pipeline has two stages, orchestrated by `main.py` (locally) or `docker-compose.yml` (Docker):
 
 ```
 Audio File  →  [01_transcribe.py]  →  [02_summarize_or.py]  →  Markdown Notes
-                     Whisper              OpenRouter API           Obsidian / OneNote
+                     Whisper              OpenRouter API           OneNote
 ```
 
 1. **Transcription** (`01_transcribe.py`) — Transcribes audio files locally using Whisper `large-v3-turbo` (via `faster-whisper`, no API needed). Long recordings are processed in 30-second chunks with 5-second overlap.
-2. **Summarization** (`02_summarize_or.py`) — Sends each transcript to OpenRouter and generates clean structured notes, then saves them to your Obsidian vault and OneNote notebook (`save_notes.py`).
+2. **Summarization** (`02_summarize_or.py`) — Sends each transcript to OpenRouter and generates clean structured notes, then saves them to your OneNote notebook (`save_notes.py`).
 
 ## Project Structure
 
@@ -27,11 +27,14 @@ AutoMeetingNotes/
 │   ├── .processed_files.json       # Audio files already transcribed
 │   ├── .batch_manifest.json        # Transcripts pending summarization
 │   └── .summarized_tracking.json   # Summaries already generated
+├── Dockerfile                      # Container image (python:3.12-slim + ffmpeg)
+├── docker-compose.yml              # Two services: transcriber → summarizer
+├── .env.example                    # Configuration template
 ├── main.bat                        # Windows launcher (venv Python)
 ├── main.py                         # Orchestrator — runs the full pipeline
 ├── 01_transcribe.py                # Stage 1: transcription
 ├── 02_summarize_or.py              # Stage 2: summarization via OpenRouter
-├── save_notes.py                   # Saves notes to Obsidian + OneNote
+├── save_notes.py                   # Saves notes to OneNote
 ├── summarizer_template.md          # Prompt template for the summarizer
 └── requirements.txt
 ```
@@ -50,7 +53,14 @@ Requires **Python 3.12** and a CUDA-enabled GPU (recommended). The default PyTor
 
 ### 2. Configure `.env`
 
+```bash
+cp .env.example .env
+```
+
 ```ini
+# Input folder (host path mounted into the container)
+INPUT_DIR=G:\My Drive
+
 # Transcription
 WHISPER_BACKEND=faster-whisper
 WHISPER_MODEL=large-v3-turbo
@@ -69,6 +79,7 @@ Full list of optional environment variables:
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
+| `INPUT_DIR` | `input` | Folder scanned for audio files |
 | `WHISPER_BACKEND` | `openai-whisper` | `faster-whisper` (recommended) or `openai-whisper` |
 | `WHISPER_MODEL` | `large-v3-turbo` | Whisper model name |
 | `WHISPER_CHUNK_SECONDS` | `30` | Audio chunk length |
@@ -83,13 +94,33 @@ Full list of optional environment variables:
 
 ## Usage
 
-1. Drop your meeting audio (`.mp3`, `.m4a`, `.wav`, `.ogg`, `.mp4`) into **`G:\My Drive`** (Google Drive desktop folder — this path is configured in `01_transcribe.py`)
+### Local (Windows)
+
+1. Drop your meeting audio (`.mp3`, `.m4a`, `.wav`, `.ogg`, `.mp4`) into the folder set by `INPUT_DIR` (default: `./input`)
 2. Run `main.bat` (or `python main.py`)
+
+### Docker
+
+1. Set `INPUT_DIR` in `.env` to the **absolute host path** containing your audio files
+2. Run:
+
+```bash
+docker compose build
+docker compose up
+```
+
+The `transcriber` service runs stage 1 with your audio folder mounted at `/app/input`; the `summarizer` service runs stage 2 once transcription completes successfully. Transcripts, summaries, and tracking state live in the shared `pipeline-output` volume, and the Whisper model cache persists in the `hf-cache` volume across runs.
+
+To view generated files from the volume:
+
+```bash
+docker compose cp summarizer:/app/output ./output-docker
+```
 
 The pipeline will automatically:
 - Transcribe each new audio file → `output/latest/02_transcription.md` + `output/transcripts/{name}.md`
 - Summarize each transcript → `output/latest/05_summarize.md` + `output/summaries/{name}_summary.md`
-- Save each summary to your Obsidian vault and OneNote notebook
+- Save each summary to your OneNote notebook
 
 Already-processed audio files are skipped on subsequent runs.
 
@@ -97,4 +128,4 @@ Already-processed audio files are skipped on subsequent runs.
 
 - The summarizer prompt comes from `summarizer_template.md` (system message + `---` + user prompt with a `{transcript}` placeholder); the script falls back to built-in defaults if missing or malformed
 - Summarization input is capped at ~50,000 characters by default (configurable via `MAX_INPUT_CHARS`)
-- Summaries are saved to Obsidian at `C:\Users\ASUS\Documents\famb vault` (hardcoded in `save_notes.py`)
+- Notes are saved to OneNote via the Maton API (`MATON_API_KEY`, notebook/section names in `.env`)
