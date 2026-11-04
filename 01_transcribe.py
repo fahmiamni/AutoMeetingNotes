@@ -210,6 +210,15 @@ all_audio_files = sorted([
     for f in input_dir.glob(f'*{ext}')
 ])
 
+if 'TRANSCRIBE_ONLY_FILES' in os.environ:
+    requested_files = json.loads(os.environ['TRANSCRIBE_ONLY_FILES'])
+    if not isinstance(requested_files, list) or not all(
+        isinstance(name, str) for name in requested_files
+    ):
+        raise ValueError('TRANSCRIBE_ONLY_FILES must be a JSON array of filenames.')
+    requested_names = set(requested_files)
+    all_audio_files = [f for f in all_audio_files if f.name in requested_names]
+
 if not all_audio_files:
     print(f'No audio files found in {input_dir}. Supported formats: {", ".join(AUDIO_EXTENSIONS)}')
     print("-" * 50)
