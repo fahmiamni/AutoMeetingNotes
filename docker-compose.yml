@@ -2,7 +2,9 @@ services:
   transcriber:
     build: .
     image: automeetingnotes:latest
-    command: python 01_transcribe.py
+    # Safety net (Linux): if the mounted input folder arrived root-owned, hand it
+    # back to the host user running docker, so files can be added between runs.
+    command: sh -c "chown -R $$(id -u):$$(id -g) /app/input 2>/dev/null; python 01_transcribe.py"
     restart: "no"
     env_file: .env
     environment:

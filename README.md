@@ -117,6 +117,15 @@ To view generated files from the volume:
 docker compose cp summarizer:/app/output ./output-docker
 ```
 
+### ⚠️ The `input` folder is locked (Linux)
+
+If `input/` does not exist when you first run `docker compose up`, the Docker daemon creates it as **root**, and your user can't write to it (a lock icon in your file manager). Two ways to avoid this:
+
+- **Recommended:** create the folder yourself before the first run — `mkdir -p input`. A clone of this repo already includes `input/.gitkeep`, so the folder exists and is owned by you; no action needed.
+- **Fix an already-locked folder:** `sudo chown $USER:$USER input`
+
+Don't delete and recreate `input/` with `sudo` — that recreates it as root-owned.
+
 The pipeline will automatically:
 - Transcribe each new audio file → `output/latest/02_transcription.md` + `output/transcripts/{name}.md`
 - Summarize each transcript → `output/latest/05_summarize.md` + `output/summaries/{name}_summary.md`
