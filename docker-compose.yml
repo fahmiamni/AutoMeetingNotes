@@ -2,9 +2,7 @@ services:
   worker:
     build: .
     image: automeetingnotes:latest
-    # Safety net (Linux): if the mounted input folder arrived root-owned, hand it
-    # back to the host user running docker, so files can be added between runs.
-    command: sh -c "chown -R $$(id -u):$$(id -g) /app/input 2>/dev/null; python main.py --watch"
+    command: python main.py --watch
     restart: unless-stopped
     env_file: .env
     environment:

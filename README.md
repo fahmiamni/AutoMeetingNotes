@@ -110,7 +110,7 @@ docker compose build
 docker compose up -d
 ```
 
-The `worker` stays running and checks the mounted `/app/input` folder every 5 seconds. It waits until a new audio file has stopped changing for 10 seconds, then transcribes and summarizes it. Already-processed files are skipped. These timings can be adjusted with `WATCH_POLL_SECONDS` and `WATCH_STABLE_SECONDS`.
+The `worker` stays running and checks the mounted `/app/input` folder every 5 seconds. The input mount is writable inside the container. The worker waits until a new audio file has stopped changing for 10 seconds, then transcribes and summarizes it. Already-processed files are skipped. These timings can be adjusted with `WATCH_POLL_SECONDS` and `WATCH_STABLE_SECONDS`.
 
 View worker logs with `docker compose logs -f worker`. Stop it with `docker compose down`. Transcripts, summaries, and tracking state live in the shared `pipeline-output` volume, and the Whisper model cache persists in the `hf-cache` volume across restarts.
 
@@ -120,14 +120,15 @@ To copy generated files from the volume:
 docker compose cp worker:/app/output ./output-docker
 ```
 
-### ⚠️ The `input` folder is locked (Linux)
+### Input folder permissions (Linux)
 
-If `input/` does not exist when you first run `docker compose up`, the Docker daemon creates it as **root**, and your user can't write to it (a lock icon in your file manager). Two ways to avoid this:
+The container does not change host folder permissions. If the folder became root-owned during an earlier run, restore ownership on the host input folder so your user can add files. For the default `./input` folder, run this from the repository directory:
 
-- **Recommended:** create the folder yourself before the first run — `mkdir -p input`. A clone of this repo already includes `input/.gitkeep`, so the folder exists and is owned by you; no action needed.
-- **Fix an already-locked folder:** `sudo chown $USER:$USER input`
+```bash
+sudo chown -R "$(id -u):$(id -g)" input
+```
 
-Don't delete and recreate `input/` with `sudo` — that recreates it as root-owned.
+If `INPUT_DIR` in `.env` points to a different folder, use that host folder path instead.
 
 The pipeline will automatically:
 - Transcribe each new audio file → `output/latest/02_transcription.md` + `output/transcripts/{name}.md`
